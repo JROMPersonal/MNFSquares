@@ -1,5 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, Shuffle, Lock, Unlock, X } from 'lucide-react';
+import { createClient } from '@supabase/supabase-js';
+
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 export default function FootballSquares() {
   const [squares, setSquares] = useState(Array(100).fill(null));
@@ -14,6 +20,7 @@ export default function FootballSquares() {
   const [adminError, setAdminError] = useState('');
   const [tooltipSquare, setTooltipSquare] = useState(null);
   const [isZoomedOut, setIsZoomedOut] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Editable fields
   const [gameTitle, setGameTitle] = useState('Monday Night Football Squares');
@@ -21,7 +28,96 @@ export default function FootballSquares() {
   const [teamCol, setTeamCol] = useState('Chiefs');
   const [isEditingTitle, setIsEditingTitle] = useState(false);
 
-  const ADMIN_KEY = 'x123james';
+  const ADMIN_KEY = 'mnf2024';
+
+  // Get week ID from URL path (e.g., /week1, /week2)
+  const getWeekId = () => {
+    const path = window.location.pathname;
+    const match = path.match(/\/(week\d+)/);
+    return match ? match[1] : 'week1';
+  };
+
+  const weekId = getWeekId();
+
+  // Load data from Supabase on mount
+  useEffect(() => {
+    loadGameData();
+  }, [weekId]);
+
+  // Save data to Supabase whenever state changes (debounced)
+  useEffect(() => {
+    if (!isLoading) {
+      const timer = setTimeout(() => {
+        saveGameData();
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [squares, players, rowNumbers, colNumbers, gameTitle, teamRow, teamCol, isLoading]);
+
+  const loadGameData = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('game_weeks')
+        .select('*')
+        .eq('week_id', weekId)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error loading data:', error);
+        setIsLoading(false);
+        return;
+      }
+
+      if (data) {
+        setSquares(data.squares || Array(100).fill(null));
+        setPlayers(data.players || []);
+        setRowNumbers(data.row_numbers || [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+        setColNumbers(data.col_numbers || [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+        setGameTitle(data.game_title || 'Monday Night Football Squares');
+        setTeamRow(data.team_row || 'Jaguars');
+        setTeamCol(data.team_col || 'Chiefs');
+      }
+      setIsLoading(false);
+    } catch (err) {
+      console.error('Unexpected error:', err);
+      setIsLoading(false);
+    }
+  };
+
+  const saveGameData = async () => {
+    try {
+      const gameData = {
+        week_id: weekId,
+        squares,
+        players,
+        row_numbers: rowNumbers,
+        col_numbers: colNumbers,
+        game_title: gameTitle,
+        team_row: teamRow,
+        team_col: teamCol,
+        updated_at: new Date().toISOString()
+      };
+
+      const { data: existing } = await supabase
+        .from('game_weeks')
+        .select('id')
+        .eq('week_id', weekId)
+        .single();
+
+      if (existing) {
+        await supabase
+          .from('game_weeks')
+          .update(gameData)
+          .eq('week_id', weekId);
+      } else {
+        await supabase
+          .from('game_weeks')
+          .insert([gameData]);
+      }
+    } catch (err) {
+      console.error('Error saving data:', err);
+    }
+  };
 
   const handleAddPlayer = () => {
     setPlayers([...players, { name: '', squares: 1 }]);
@@ -139,6 +235,14 @@ export default function FootballSquares() {
   const totalAssigned = squares.filter(s => s !== null).length;
   const totalRequested = players.reduce((sum, p) => sum + (p.squares || 0), 0);
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-[#1e1f22] flex items-center justify-center">
+        <div className="text-white text-xl">Loading {weekId}...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#1e1f22] p-2 sm:p-4 lg:p-8">
       <div className="max-w-7xl mx-auto">
@@ -155,10 +259,10 @@ export default function FootballSquares() {
             />
           ) : (
             <h1
-              className="text-xl sm:text-2xl lg:text-4xl font-bold text-white cursor-pointer hover:text-[#4da6ff] transition-colors"
+              className={`text-xl sm:text-2xl lg:text-4xl font-bold text-white ${isAdmin ? 'cursor-pointer hover:text-[#4da6ff]' : ''} transition-colors`}
               onClick={() => isAdmin && setIsEditingTitle(true)}
             >
-              {gameTitle}
+              {gameTitle} <span className="text-sm text-gray-500">({weekId})</span>
             </h1>
           )}
           <button
@@ -252,7 +356,6 @@ export default function FootballSquares() {
                   Assigned: {totalAssigned} / 100
                 </div>
                 <div className="flex gap-2">
-                  {/* Zoom toggle for mobile */}
                   <button
                     onClick={() => setIsZoomedOut(!isZoomedOut)}
                     className="lg:hidden px-2 sm:px-3 py-1 sm:py-2 bg-[#313338] text-gray-200 text-xs sm:text-sm font-medium rounded hover:bg-[#383a40] transition-colors border border-[#404249]"
@@ -303,7 +406,7 @@ export default function FootballSquares() {
 
                 {/* Grid rows */}
                 <div className="flex">
-                  {/* Jaguars label vertically */}
+                  {/* Team label vertically */}
                   <div className="flex items-center justify-center w-6 lg:w-10">
                     {isAdmin ? (
                       <input
