@@ -15,6 +15,12 @@ export default function FootballSquares() {
   const [tooltipSquare, setTooltipSquare] = useState(null);
   const [isZoomedOut, setIsZoomedOut] = useState(false);
 
+  // Editable fields
+  const [gameTitle, setGameTitle] = useState('Monday Night Football Squares');
+  const [teamRow, setTeamRow] = useState('Jaguars');
+  const [teamCol, setTeamCol] = useState('Chiefs');
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+
   const ADMIN_KEY = 'mnf2024';
 
   const handleAddPlayer = () => {
@@ -137,7 +143,24 @@ export default function FootballSquares() {
     <div className="min-h-screen bg-[#1e1f22] p-2 sm:p-4 lg:p-8">
       <div className="max-w-7xl mx-auto">
         <div className="flex items-center justify-between mb-2 sm:mb-4">
-          <h1 className="text-xl sm:text-2xl lg:text-4xl font-bold text-white">Monday Night Football Squares</h1>
+          {isAdmin && isEditingTitle ? (
+            <input
+              type="text"
+              value={gameTitle}
+              onChange={(e) => setGameTitle(e.target.value)}
+              onBlur={() => setIsEditingTitle(false)}
+              onKeyPress={(e) => e.key === 'Enter' && setIsEditingTitle(false)}
+              className="text-xl sm:text-2xl lg:text-4xl font-bold text-white bg-[#313338] border border-[#4da6ff] rounded px-2 py-1 focus:outline-none"
+              autoFocus
+            />
+          ) : (
+            <h1
+              className="text-xl sm:text-2xl lg:text-4xl font-bold text-white cursor-pointer hover:text-[#4da6ff] transition-colors"
+              onClick={() => isAdmin && setIsEditingTitle(true)}
+            >
+              {gameTitle}
+            </h1>
+          )}
           <button
             onClick={() => isAdmin ? handleAdminLogout() : setShowAdminModal(true)}
             className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-1 sm:py-2 rounded transition-colors border text-xs sm:text-sm ${
@@ -160,7 +183,9 @@ export default function FootballSquares() {
             )}
           </button>
         </div>
-        <p className="text-center text-gray-400 mb-4 sm:mb-6 lg:mb-8 text-sm sm:text-base">Chiefs vs Jaguars</p>
+        <p className="text-center text-gray-400 mb-4 sm:mb-6 lg:mb-8 text-sm sm:text-base">
+          {teamCol} vs {teamRow}
+        </p>
 
         {/* Admin Login Modal */}
         {showAdminModal && (
@@ -212,7 +237,7 @@ export default function FootballSquares() {
                 </button>
               </div>
               <div className="text-gray-300">
-                Chiefs {colNumbers[tooltipSquare % 10]} - Jaguars {rowNumbers[Math.floor(tooltipSquare / 10)]}
+                {teamCol} {colNumbers[tooltipSquare % 10]} - {teamRow} {rowNumbers[Math.floor(tooltipSquare / 10)]}
               </div>
             </div>
           </div>
@@ -249,9 +274,19 @@ export default function FootballSquares() {
                 {/* Column header with team name */}
                 <div className="flex mb-1">
                   <div className="w-12 lg:w-20"></div>
-                  <div className="text-center font-bold text-sm sm:text-base lg:text-lg text-[#4da6ff]" style={{width: 'calc(10 * (48px + 4px))', '@media (min-width: 1024px)': {width: '533px'}}}>
-                    Chiefs
-                  </div>
+                  {isAdmin ? (
+                    <input
+                      type="text"
+                      value={teamCol}
+                      onChange={(e) => setTeamCol(e.target.value)}
+                      className="text-center font-bold text-sm sm:text-base lg:text-lg text-[#4da6ff] bg-[#313338] border border-[#4da6ff] rounded px-2 focus:outline-none"
+                      style={{width: 'calc(10 * (48px + 4px))'}}
+                    />
+                  ) : (
+                    <div className="text-center font-bold text-sm sm:text-base lg:text-lg text-[#4da6ff]" style={{width: 'calc(10 * (48px + 4px))'}}>
+                      {teamCol}
+                    </div>
+                  )}
                 </div>
 
                 {/* Column numbers */}
@@ -270,9 +305,19 @@ export default function FootballSquares() {
                 <div className="flex">
                   {/* Jaguars label vertically */}
                   <div className="flex items-center justify-center w-6 lg:w-10">
-                    <div className="font-bold text-sm sm:text-base lg:text-lg text-[#4da6ff]" style={{writingMode: 'vertical-rl', transform: 'rotate(180deg)'}}>
-                      Jaguars
-                    </div>
+                    {isAdmin ? (
+                      <input
+                        type="text"
+                        value={teamRow}
+                        onChange={(e) => setTeamRow(e.target.value)}
+                        className="font-bold text-sm sm:text-base lg:text-lg text-[#4da6ff] bg-[#313338] border border-[#4da6ff] rounded px-1 py-2 focus:outline-none text-center w-full"
+                        style={{writingMode: 'vertical-rl', transform: 'rotate(180deg)'}}
+                      />
+                    ) : (
+                      <div className="font-bold text-sm sm:text-base lg:text-lg text-[#4da6ff]" style={{writingMode: 'vertical-rl', transform: 'rotate(180deg)'}}>
+                        {teamRow}
+                      </div>
+                    )}
                   </div>
 
                   {/* Row numbers */}
@@ -311,7 +356,7 @@ export default function FootballSquares() {
                               {/* Desktop Tooltip */}
                               <div className="hidden md:block absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-[#1e1f22] text-white text-sm rounded shadow-lg border-2 border-orange-400 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-10">
                                 <div className="font-semibold">{square}</div>
-                                <div className="text-xs text-gray-300">Chiefs {chiefsScore} - Jaguars {jaguarsScore}</div>
+                                <div className="text-xs text-gray-300">{teamCol} {chiefsScore} - {teamRow} {jaguarsScore}</div>
                                 <div className="absolute top-full left-1/2 transform -translate-x-1/2 -mt-px">
                                   <div className="border-4 border-transparent border-t-orange-400"></div>
                                 </div>
@@ -445,9 +490,9 @@ export default function FootballSquares() {
                     <div className="space-y-2">
                       {getPlayerSquares(selectedPlayer).map((sq, idx) => (
                         <div key={idx} className="px-3 sm:px-4 py-2 bg-[#2b2d31] rounded border border-[#404249] text-gray-200 text-sm sm:text-base">
-                          <span className="font-semibold text-[#4da6ff]">Chiefs {sq.chiefs}</span>
+                          <span className="font-semibold text-[#4da6ff]">{teamCol} {sq.chiefs}</span>
                           {' - '}
-                          <span className="font-semibold text-[#4da6ff]">Jaguars {sq.jaguars}</span>
+                          <span className="font-semibold text-[#4da6ff]">{teamRow} {sq.jaguars}</span>
                         </div>
                       ))}
                     </div>
