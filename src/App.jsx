@@ -29,6 +29,15 @@ export default function FootballSquares() {
   const [teamCol, setTeamCol] = useState('Chiefs');
   const [isEditingTitle, setIsEditingTitle] = useState(false);
 
+  // Quarter scores
+  const [quarterScores, setQuarterScores] = useState({
+    q1: { team_col: '', team_row: '' },
+    q2: { team_col: '', team_row: '' },
+    q3: { team_col: '', team_row: '' },
+    q4: { team_col: '', team_row: '' }
+  });
+  const [isComplete, setIsComplete] = useState(false);
+
   const ADMIN_KEY = 'x123james';
 
   // Get week ID from URL query parameter (e.g., ?week=1, ?week=2)
@@ -62,7 +71,7 @@ export default function FootballSquares() {
       }, 1000);
       return () => clearTimeout(timer);
     }
-  }, [squares, players, rowNumbers, colNumbers, gameTitle, teamRow, teamCol, isLoading]);
+  }, [squares, players, rowNumbers, colNumbers, gameTitle, teamRow, teamCol, quarterScores, isComplete, isLoading]);
 
   const loadGameData = async () => {
     try {
@@ -86,6 +95,13 @@ export default function FootballSquares() {
         setGameTitle(data.game_title || 'Monday Night Football Squares');
         setTeamRow(data.team_row || 'Jaguars');
         setTeamCol(data.team_col || 'Chiefs');
+        setQuarterScores(data.quarter_scores || {
+          q1: { team_col: '', team_row: '' },
+          q2: { team_col: '', team_row: '' },
+          q3: { team_col: '', team_row: '' },
+          q4: { team_col: '', team_row: '' }
+        });
+        setIsComplete(data.is_complete || false);
       }
       setIsLoading(false);
     } catch (err) {
@@ -105,6 +121,8 @@ export default function FootballSquares() {
         game_title: gameTitle,
         team_row: teamRow,
         team_col: teamCol,
+        quarter_scores: quarterScores,
+        is_complete: isComplete,
         updated_at: new Date().toISOString()
       };
 
@@ -161,7 +179,7 @@ export default function FootballSquares() {
 
   const handlePlayerSquaresChange = (index, squareCount) => {
     const newPlayers = [...players];
-    newPlayers[index].squares = parseInt(squareCount) || 1;
+    newPlayers[index].squares = squareCount === '' ? '' : parseInt(squareCount) || 1;
     setPlayers(newPlayers);
   };
 
@@ -533,6 +551,7 @@ export default function FootballSquares() {
                           max="100"
                           value={player.squares}
                           onChange={(e) => handlePlayerSquaresChange(index, e.target.value)}
+                          onFocus={(e) => e.target.select()}
                           className="w-12 sm:w-16 px-1 sm:px-2 py-1.5 sm:py-2 bg-[#313338] border border-[#404249] text-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-[#4da6ff] text-center text-sm sm:text-base"
                         />
                         <button
@@ -581,6 +600,65 @@ export default function FootballSquares() {
                     className="w-full px-3 sm:px-4 py-2 bg-red-500/20 text-red-400 rounded hover:bg-red-500/30 transition-colors text-xs sm:text-sm"
                   >
                     Clear All Squares
+                  </button>
+                </div>
+
+                {/* Quarter Scores Section */}
+                <div className="mt-6 pt-6 border-t-2 border-[#404249]">
+                  <h3 className="text-lg sm:text-xl font-bold mb-3 text-white">Quarter Scores</h3>
+                  <div className="space-y-3">
+                    {['q1', 'q2', 'q3', 'q4'].map((quarter, idx) => (
+                      <div key={quarter} className="bg-[#313338] rounded p-3 border border-[#404249]">
+                        <div className="font-semibold text-gray-200 mb-2 text-sm">Q{idx + 1}</div>
+                        <div className="flex gap-2 items-center">
+                          <div className="flex-1">
+                            <label className="text-xs text-gray-400 block mb-1">{teamCol}</label>
+                            <input
+                              type="number"
+                              min="0"
+                              max="99"
+                              placeholder="0"
+                              value={quarterScores[quarter].team_col}
+                              onChange={(e) => setQuarterScores({
+                                ...quarterScores,
+                                [quarter]: { ...quarterScores[quarter], team_col: e.target.value }
+                              })}
+                              onFocus={(e) => e.target.select()}
+                              className="w-full px-2 py-1.5 bg-[#2b2d31] border border-[#404249] text-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-[#4da6ff] text-center"
+                            />
+                          </div>
+                          <div className="text-gray-500 font-bold">-</div>
+                          <div className="flex-1">
+                            <label className="text-xs text-gray-400 block mb-1">{teamRow}</label>
+                            <input
+                              type="number"
+                              min="0"
+                              max="99"
+                              placeholder="0"
+                              value={quarterScores[quarter].team_row}
+                              onChange={(e) => setQuarterScores({
+                                ...quarterScores,
+                                [quarter]: { ...quarterScores[quarter], team_row: e.target.value }
+                              })}
+                              onFocus={(e) => e.target.select()}
+                              className="w-full px-2 py-1.5 bg-[#2b2d31] border border-[#404249] text-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-[#4da6ff] text-center"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Mark as Complete Button */}
+                  <button
+                    onClick={() => setIsComplete(!isComplete)}
+                    className={`w-full mt-4 px-4 py-3 rounded font-semibold transition-colors ${
+                      isComplete
+                        ? 'bg-green-600 text-white hover:bg-green-700'
+                        : 'bg-yellow-500 text-black hover:bg-yellow-600'
+                    }`}
+                  >
+                    {isComplete ? '✓ Week Complete' : 'Mark Week as Complete'}
                   </button>
                 </div>
               </div>
