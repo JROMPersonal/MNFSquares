@@ -60,13 +60,20 @@ export default function FootballSquares() {
 
   const ADMIN_KEY = 'x123james';
 
-  // Redirect to current week if no week specified
+  // Load current week setting first
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (!params.has('week') && !params.has('admin')) {
-      window.location.href = `?week=${currentWeek}`;
-    }
+    loadCurrentWeek();
   }, []);
+
+  // Redirect to current week if no week specified (after currentWeek is loaded)
+  useEffect(() => {
+    if (currentWeek > 0) {
+      const params = new URLSearchParams(window.location.search);
+      if (!params.has('week') && !params.has('admin')) {
+        window.location.href = `?week=${currentWeek}`;
+      }
+    }
+  }, [currentWeek]);
 
   // Get week ID from URL query parameter
   const getWeekId = () => {
@@ -98,11 +105,6 @@ export default function FootballSquares() {
   useEffect(() => {
     loadGameData();
   }, [weekId]);
-
-  // Load current week setting
-  useEffect(() => {
-    loadCurrentWeek();
-  }, []);
 
   // Auto-load template players for all weeks (not just empty ones)
   useEffect(() => {
