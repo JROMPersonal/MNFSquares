@@ -13,6 +13,7 @@ export default function FootballSquares() {
   const [adminKeyInput, setAdminKeyInput] = useState('');
   const [adminError, setAdminError] = useState('');
   const [tooltipSquare, setTooltipSquare] = useState(null);
+  const [isZoomedOut, setIsZoomedOut] = useState(false);
 
   const ADMIN_KEY = 'mnf2024';
 
@@ -221,21 +222,30 @@ export default function FootballSquares() {
           {/* Grid Section */}
           <div className={isAdmin ? "flex-shrink-0 w-full" : "w-full"}>
             <div className="bg-[#2b2d31] rounded-lg shadow-xl p-2 sm:p-4 lg:p-6 overflow-x-auto">
-              <div className="flex items-center justify-between mb-3 sm:mb-4 lg:mb-6">
+              <div className="flex items-center justify-between mb-3 sm:mb-4 lg:mb-6 gap-2">
                 <div className="text-xs sm:text-sm font-semibold text-gray-300">
                   Assigned: {totalAssigned} / 100
                 </div>
-                {isAdmin && (
+                <div className="flex gap-2">
+                  {/* Zoom toggle for mobile */}
                   <button
-                    onClick={randomizeNumbers}
-                    className="px-2 sm:px-4 py-1 sm:py-2 bg-[#4da6ff] text-white text-xs sm:text-sm font-medium rounded hover:bg-[#3399ff] transition-colors shadow-lg"
+                    onClick={() => setIsZoomedOut(!isZoomedOut)}
+                    className="lg:hidden px-2 sm:px-3 py-1 sm:py-2 bg-[#313338] text-gray-200 text-xs sm:text-sm font-medium rounded hover:bg-[#383a40] transition-colors border border-[#404249]"
                   >
-                    🎲 <span className="hidden sm:inline">Randomize Numbers</span>
+                    {isZoomedOut ? '🔍 Zoom In' : '🔍 Zoom Out'}
                   </button>
-                )}
+                  {isAdmin && (
+                    <button
+                      onClick={randomizeNumbers}
+                      className="px-2 sm:px-4 py-1 sm:py-2 bg-[#4da6ff] text-white text-xs sm:text-sm font-medium rounded hover:bg-[#3399ff] transition-colors shadow-lg"
+                    >
+                      🎲 <span className="hidden sm:inline">Randomize Numbers</span>
+                    </button>
+                  )}
+                </div>
               </div>
 
-              <div className="inline-block min-w-max">
+              <div className={`inline-block min-w-max transition-transform origin-top-left ${isZoomedOut ? 'lg:scale-100 scale-[0.65]' : ''}`}>
                 {/* Column header with team name */}
                 <div className="flex mb-1">
                   <div className="w-12 lg:w-20"></div>
