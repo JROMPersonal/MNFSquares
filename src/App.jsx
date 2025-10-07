@@ -22,6 +22,8 @@ export default function FootballSquares() {
   const [tooltipSquare, setTooltipSquare] = useState(null);
   const [isZoomedOut, setIsZoomedOut] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [assigningSquare, setAssigningSquare] = useState(null);
 
   // Editable fields
   const [gameTitle, setGameTitle] = useState('Monday Night Football Squares');
@@ -40,16 +42,24 @@ export default function FootballSquares() {
 
   const ADMIN_KEY = 'x123james';
 
-  // Get week ID from URL query parameter (e.g., ?week=1, ?week=2)
+  // Get week ID from URL query parameter
   const getWeekId = () => {
     const params = new URLSearchParams(window.location.search);
+
+    // Check if we're in admin/template mode
+    if (params.has('admin')) {
+      return 'season_template';
+    }
+
     const week = params.get('week');
-    return week ? `week${week}` : 'week1'; // Default to week1
+    return week ? `week${week}` : 'week1';
   };
 
   const weekId = getWeekId();
+  const isTemplateMode = weekId === 'season_template';
 
   const getCurrentWeekNumber = () => {
+    if (isTemplateMode) return null;
     const params = new URLSearchParams(window.location.search);
     return parseInt(params.get('week')) || 1;
   };
@@ -63,7 +73,7 @@ export default function FootballSquares() {
     loadGameData();
   }, [weekId]);
 
-  // Save data to Supabase whenever state changes (debounced)
+  // Save data to Supabase whenever state changes
   useEffect(() => {
     if (!isLoading) {
       const timer = setTimeout(() => {
@@ -252,12 +262,69 @@ export default function FootballSquares() {
     return Array.from(uniqueNames);
   };
 
+  const getWinningSquares = () => {
+    const winners = [];
+    const quarters = ['q1', 'q2', 'q3', 'q4'];
+
+    quarters.forEach((quarter, qIndex) => {
+      const scores = quarterScores[quarter];
+      if (scores && scores.team_col !== '' && scores.team_row !== '') {
+        const colLastDigit = parseInt(scores.team_col) % 10;
+        const rowLastDigit = parseInt(scores.team_row) % 10;
+
+        const colIndex = colNumbers.indexOf(colLastDigit);
+        const rowIndex = rowNumbers.indexOf(rowLastDigit);
+
+        if (colIndex !== -1 && rowIndex !== -1) {
+          const squareIndex = rowIndex * 10 + colIndex;
+          const player = squares[squareIndex];
+
+          winners.push({
+            quarter: `Q${qIndex + 1}`,
+            score: `${teamCol} ${scores.team_col} - ${teamRow} ${scores.team_row}`,
+            player: player || 'No one',
+            colNum: colLastDigit,
+            rowNum: rowLastDigit,
+            squareIndex: squareIndex
+          });
+        }
+      }
+    });
+
+    return winners;
+  };
+
+  const isWinningSquare = (index) => {
+    if (!isComplete) return false;
+    const winners = getWinningSquares();
+    return winners.some(w => w.squareIndex === index);
+  };
+
   const handleSquareClick = (index, square) => {
-    if (square) {
+    if (isAdmin) {
+      setAssigningSquare(index);
+      setShowAssignModal(true);
+    } else if (square) {
       setHighlightedPlayer(square);
       setSelectedPlayer(square);
       setTooltipSquare(tooltipSquare === index ? null : index);
     }
+  };
+
+  const assignSquareToPlayer = (playerName) => {
+    const newSquares = [...squares];
+    newSquares[assigningSquare] = playerName;
+    setSquares(newSquares);
+    setShowAssignModal(false);
+    setAssigningSquare(null);
+  };
+
+  const clearAssignedSquare = () => {
+    const newSquares = [...squares];
+    newSquares[assigningSquare] = null;
+    setSquares(newSquares);
+    setShowAssignModal(false);
+    setAssigningSquare(null);
   };
 
   const totalAssigned = squares.filter(s => s !== null).length;
@@ -399,6 +466,68 @@ export default function FootballSquares() {
           </div>
         )}
 
+        {/* Assign Square Modal - Admin only */}
+        {showAssignModal && isAdmin && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowAssignModal(false)}>
+            <div className="bg-[#2b2d31] rounded-lg p-4 sm:p-6 w-full max-w-md border border-[#404249]" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg sm:text-xl font-bold text-white">
+                  Assign Square {assigningSquare !== null ? assigningSquare + 1 : ''}
+                </h3>
+                <button onClick={() => setShowAssignModal(false)} className="text-gray-400 hover:text-white">
+                  <X size={20} />
+                </button>
+              </div>
+
+              {squares[assigningSquare] && (
+                <button
+                  onClick={clearAssignedSquare}
+                  className="w-full mb-3 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+                >
+                  Clear Square
+                </button>
+              )}
+
+              <div className="text-sm text-gray-400 mb-2">Select a player:</div>
+              <div className="space-y-2 max-h-80 overflow-y-auto">
+                {players.filter(p => p.name.trim()).map((player, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => assignSquareToPlayer(player.name.trim())}
+                    className="w-full text-left px-4 py-3 bg-[#313338] text-gray-200 rounded hover:bg-[#4da6ff] hover:text-white transition-colors border border-[#404249]"
+                  >
+                    {player.name}
+                  </button>
+                ))}
+                {players.filter(p => p.name.trim()).length === 0 && (
+                  <div className="text-center text-gray-500 py-4">
+                    No players added yet
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Winners Display */}
+        {isComplete && getWinningSquares().length > 0 && (
+          <div className="mb-4 sm:mb-6 bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border-2 border-yellow-500 rounded-lg p-4 sm:p-6">
+            <h2 className="text-2xl sm:text-3xl font-bold text-center text-yellow-400 mb-4">🏆 Winners! 🏆</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+              {getWinningSquares().map((winner, idx) => (
+                <div key={idx} className="bg-[#2b2d31] rounded-lg p-4 border-2 border-yellow-500/50">
+                  <div className="text-yellow-400 font-bold text-lg mb-2">{winner.quarter}</div>
+                  <div className="text-white font-semibold text-xl mb-2">{winner.player}</div>
+                  <div className="text-gray-300 text-sm mb-1">{winner.score}</div>
+                  <div className="text-[#4da6ff] text-sm">
+                    Square: {teamCol} {winner.colNum}, {teamRow} {winner.rowNum}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="flex flex-col lg:flex-row gap-4 lg:gap-8 justify-center">
           {/* Grid Section */}
           <div className={isAdmin ? "flex-shrink-0 w-full" : "w-full"}>
@@ -412,21 +541,20 @@ export default function FootballSquares() {
                     onClick={() => setIsZoomedOut(!isZoomedOut)}
                     className="lg:hidden px-2 sm:px-3 py-1 sm:py-2 bg-[#313338] text-gray-200 text-xs sm:text-sm font-medium rounded hover:bg-[#383a40] transition-colors border border-[#404249]"
                   >
-                    {isZoomedOut ? '🔍 Zoom In' : '🔍 Zoom Out'}
+                    {isZoomedOut ? 'Zoom In' : 'Zoom Out'}
                   </button>
                   {isAdmin && (
                     <button
                       onClick={randomizeNumbers}
                       className="px-2 sm:px-4 py-1 sm:py-2 bg-[#4da6ff] text-white text-xs sm:text-sm font-medium rounded hover:bg-[#3399ff] transition-colors shadow-lg"
                     >
-                      🎲 <span className="hidden sm:inline">Randomize Numbers</span>
+                      Randomize Numbers
                     </button>
                   )}
                 </div>
               </div>
 
               <div className={`inline-block min-w-max transition-transform origin-top-left ${isZoomedOut ? 'lg:scale-100 scale-[0.65]' : ''}`}>
-                {/* Column header with team name */}
                 <div className="flex mb-1">
                   <div className="w-12 lg:w-20"></div>
                   {isAdmin ? (
@@ -444,7 +572,6 @@ export default function FootballSquares() {
                   )}
                 </div>
 
-                {/* Column numbers */}
                 <div className="flex mb-1">
                   <div className="w-12 lg:w-20"></div>
                   <div className="flex gap-1">
@@ -456,9 +583,7 @@ export default function FootballSquares() {
                   </div>
                 </div>
 
-                {/* Grid rows */}
                 <div className="flex">
-                  {/* Team label vertically */}
                   <div className="flex items-center justify-center w-6 lg:w-10">
                     {isAdmin ? (
                       <input
@@ -475,7 +600,6 @@ export default function FootballSquares() {
                     )}
                   </div>
 
-                  {/* Row numbers */}
                   <div className="flex flex-col gap-1 w-6 lg:w-10">
                     {rowNumbers.map(num => (
                       <div key={num} className="flex items-center justify-center font-bold text-xs sm:text-sm text-gray-400 h-12 lg:h-[52px]">
@@ -484,7 +608,6 @@ export default function FootballSquares() {
                     ))}
                   </div>
 
-                  {/* Grid squares */}
                   <div className="grid grid-cols-10 gap-1">
                     {squares.map((square, index) => {
                       const isHighlighted = square && square === highlightedPlayer;
@@ -498,7 +621,9 @@ export default function FootballSquares() {
                           key={index}
                           onClick={() => handleSquareClick(index, square)}
                           className={`border-2 rounded text-xs font-medium flex items-center justify-center transition-all relative group w-12 h-12 lg:w-[52px] lg:h-[52px] ${
-                            isHighlighted
+                            isWinningSquare(index)
+                              ? 'border-yellow-500 bg-yellow-500/30 text-white shadow-lg shadow-yellow-500/50 animate-pulse'
+                              : isHighlighted
                               ? 'border-[#00d4ff] bg-[#00d4ff]/30 text-white shadow-lg shadow-[#00d4ff]/50 cursor-pointer'
                               : square
                               ? 'border-[#4da6ff]/50 bg-[#4da6ff]/10 text-gray-200 cursor-pointer hover:bg-[#4da6ff]/20 active:bg-[#4da6ff]/30'
@@ -508,7 +633,6 @@ export default function FootballSquares() {
                           {square && (
                             <>
                               <div className="px-1 text-[10px] sm:text-xs leading-tight text-center break-words">{square}</div>
-                              {/* Desktop Tooltip */}
                               <div className="hidden md:block absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-[#1e1f22] text-white text-sm rounded shadow-lg border-2 border-orange-400 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-10">
                                 <div className="font-semibold">{square}</div>
                                 <div className="text-xs text-gray-300">{teamCol} {chiefsScore} - {teamRow} {jaguarsScore}</div>
@@ -527,45 +651,41 @@ export default function FootballSquares() {
             </div>
           </div>
 
-          {/* Players Section - Only visible to admins */}
+          {/* Players Section */}
           {isAdmin && (
             <div className="w-full lg:w-96">
               <div className="bg-[#2b2d31] rounded-lg shadow-xl p-4 sm:p-6">
                 <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4 text-white">Players</h2>
 
-                {/* Players List */}
                 <div className="space-y-2 mb-4 max-h-60 sm:max-h-96 overflow-y-auto">
-                  {players.map((player, index) => {
-                    return (
-                      <div key={index} className="flex items-center gap-2">
-                        <input
-                          type="text"
-                          placeholder="Player name"
-                          value={player.name}
-                          onChange={(e) => handlePlayerNameChange(index, e.target.value)}
-                          className="flex-1 px-2 sm:px-3 py-1.5 sm:py-2 bg-[#313338] border border-[#404249] text-gray-200 placeholder-gray-500 rounded focus:outline-none focus:ring-2 focus:ring-[#4da6ff] text-sm sm:text-base"
-                        />
-                        <input
-                          type="number"
-                          min="1"
-                          max="100"
-                          value={player.squares}
-                          onChange={(e) => handlePlayerSquaresChange(index, e.target.value)}
-                          onFocus={(e) => e.target.select()}
-                          className="w-12 sm:w-16 px-1 sm:px-2 py-1.5 sm:py-2 bg-[#313338] border border-[#404249] text-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-[#4da6ff] text-center text-sm sm:text-base"
-                        />
-                        <button
-                          onClick={() => handleRemovePlayer(index)}
-                          className="text-red-400 hover:text-red-300 transition-colors p-1 sm:p-2"
-                        >
-                          <Trash2 size={16} className="sm:w-[18px] sm:h-[18px]" />
-                        </button>
-                      </div>
-                    );
-                  })}
+                  {players.map((player, index) => (
+                    <div key={index} className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        placeholder="Player name"
+                        value={player.name}
+                        onChange={(e) => handlePlayerNameChange(index, e.target.value)}
+                        className="flex-1 px-2 sm:px-3 py-1.5 sm:py-2 bg-[#313338] border border-[#404249] text-gray-200 placeholder-gray-500 rounded focus:outline-none focus:ring-2 focus:ring-[#4da6ff] text-sm sm:text-base"
+                      />
+                      <input
+                        type="number"
+                        min="1"
+                        max="100"
+                        value={player.squares}
+                        onChange={(e) => handlePlayerSquaresChange(index, e.target.value)}
+                        onFocus={(e) => e.target.select()}
+                        className="w-12 sm:w-16 px-1 sm:px-2 py-1.5 sm:py-2 bg-[#313338] border border-[#404249] text-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-[#4da6ff] text-center text-sm sm:text-base"
+                      />
+                      <button
+                        onClick={() => handleRemovePlayer(index)}
+                        className="text-red-400 hover:text-red-300 transition-colors p-1 sm:p-2"
+                      >
+                        <Trash2 size={16} className="sm:w-[18px] sm:h-[18px]" />
+                      </button>
+                    </div>
+                  ))}
                 </div>
 
-                {/* Add Player Button */}
                 <button
                   onClick={handleAddPlayer}
                   className="w-full px-3 sm:px-4 py-2 bg-[#313338] text-gray-200 rounded hover:bg-[#383a40] transition-colors flex items-center justify-center gap-2 border border-[#404249] mb-3 sm:mb-4 text-sm sm:text-base"
@@ -574,19 +694,15 @@ export default function FootballSquares() {
                   Add Player
                 </button>
 
-                {/* Summary */}
                 <div className="mb-3 sm:mb-4 p-2 sm:p-3 bg-[#313338] rounded border border-[#404249]">
                   <div className="text-xs sm:text-sm text-gray-300">
                     Total squares: <span className="font-bold text-white">{totalRequested}</span> / 100
                   </div>
                   {totalRequested > 100 && (
-                    <div className="text-xs text-red-400 mt-1">
-                      Too many squares!
-                    </div>
+                    <div className="text-xs text-red-400 mt-1">Too many squares!</div>
                   )}
                 </div>
 
-                {/* Action Buttons */}
                 <div className="space-y-2">
                   <button
                     onClick={fillSquares}
@@ -603,7 +719,6 @@ export default function FootballSquares() {
                   </button>
                 </div>
 
-                {/* Quarter Scores Section */}
                 <div className="mt-6 pt-6 border-t-2 border-[#404249]">
                   <h3 className="text-lg sm:text-xl font-bold mb-3 text-white">Quarter Scores</h3>
                   <div className="space-y-3">
@@ -649,7 +764,6 @@ export default function FootballSquares() {
                     ))}
                   </div>
 
-                  {/* Mark as Complete Button */}
                   <button
                     onClick={() => setIsComplete(!isComplete)}
                     className={`w-full mt-4 px-4 py-3 rounded font-semibold transition-colors ${
@@ -666,12 +780,11 @@ export default function FootballSquares() {
           )}
         </div>
 
-        {/* Player Squares Lookup - Bottom of Page */}
+        {/* Player Squares Lookup */}
         {totalAssigned > 0 && (
           <div className="mt-4 sm:mt-6 lg:mt-8 bg-[#2b2d31] rounded-lg shadow-xl p-4 sm:p-6">
             <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4 text-white">Player Squares</h2>
             <div className="flex flex-col md:flex-row gap-4 md:gap-6">
-              {/* Player List - Left Side */}
               <div className="w-full md:w-64 flex-shrink-0">
                 <div className="bg-[#313338] rounded border border-[#404249] max-h-60 md:max-h-80 overflow-y-auto">
                   {getUniquePlayers().map((playerName, index) => {
@@ -697,7 +810,6 @@ export default function FootballSquares() {
                 </div>
               </div>
 
-              {/* Player Squares Details - Right Side */}
               <div className="flex-1">
                 {selectedPlayer ? (
                   <div className="bg-[#313338] rounded border border-[#404249] p-3 sm:p-6">
