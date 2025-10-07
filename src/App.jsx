@@ -21,7 +21,7 @@ export default function FootballSquares() {
   const [teamCol, setTeamCol] = useState('Chiefs');
   const [isEditingTitle, setIsEditingTitle] = useState(false);
 
-  const ADMIN_KEY = 'mnf2024';
+  const ADMIN_KEY = 'x123james';
 
   const handleAddPlayer = () => {
     setPlayers([...players, { name: '', squares: 1 }]);
