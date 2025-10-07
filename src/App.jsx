@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, Shuffle, Lock, Unlock, X } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 
+// Get Supabase credentials from environment variables
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
@@ -28,13 +29,13 @@ export default function FootballSquares() {
   const [teamCol, setTeamCol] = useState('Chiefs');
   const [isEditingTitle, setIsEditingTitle] = useState(false);
 
-  const ADMIN_KEY = 'mnf2024';
+  const ADMIN_KEY = 'x123james';
 
-  // Get week ID from URL path (e.g., /week1, /week2)
+  // Get week ID from URL query parameter (e.g., ?week=1, ?week=2)
   const getWeekId = () => {
-    const path = window.location.pathname;
-    const match = path.match(/\/(week\d+)/);
-    return match ? match[1] : 'week1';
+    const params = new URLSearchParams(window.location.search);
+    const week = params.get('week');
+    return week ? `week${week}` : 'week1'; // Default to week1
   };
 
   const weekId = getWeekId();
