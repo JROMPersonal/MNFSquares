@@ -56,7 +56,7 @@ export default function FootballSquares() {
     q4: { team_col: '', team_row: '' }
   });
   const [isComplete, setIsComplete] = useState(false);
-  const [currentWeek, setCurrentWeek] = useState(1);
+  const [currentWeek, setCurrentWeek] = useState(0); // Start at 0 to know when it's loaded
 
   const ADMIN_KEY = 'x123james';
 
@@ -67,11 +67,12 @@ export default function FootballSquares() {
 
   // Redirect to current week if no week specified (after currentWeek is loaded)
   useEffect(() => {
-    if (currentWeek > 0) {
-      const params = new URLSearchParams(window.location.search);
-      if (!params.has('week') && !params.has('admin')) {
-        window.location.href = `?week=${currentWeek}`;
-      }
+    const params = new URLSearchParams(window.location.search);
+    const hasWeekParam = params.has('week');
+    const hasAdminParam = params.has('admin');
+
+    if (currentWeek > 0 && !hasWeekParam && !hasAdminParam) {
+      window.location.href = `?week=${currentWeek}`;
     }
   }, [currentWeek]);
 
