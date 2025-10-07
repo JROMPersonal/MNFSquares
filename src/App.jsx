@@ -297,7 +297,7 @@ export default function FootballSquares() {
                         >
                           {square && (
                             <>
-                              <div className="truncate px-1 text-[10px] sm:text-xs">{square}</div>
+                              <div className="px-1 text-[10px] sm:text-xs leading-tight text-center break-words">{square}</div>
                               {/* Desktop Tooltip */}
                               <div className="hidden md:block absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-[#1e1f22] text-white text-sm rounded shadow-lg border-2 border-orange-400 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-10">
                                 <div className="font-semibold">{square}</div>
