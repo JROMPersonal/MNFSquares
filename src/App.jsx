@@ -62,19 +62,36 @@ export default function FootballSquares() {
 
   // Load current week setting first
   useEffect(() => {
-    loadCurrentWeek();
+    const loadAndRedirect = async () => {
+      const params = new URLSearchParams(window.location.search);
+      const hasWeekParam = params.has('week');
+      const hasAdminParam = params.has('admin');
+
+      if (!hasWeekParam && !hasAdminParam) {
+        // Need to load current week and redirect
+        try {
+          const { data, error } = await supabase
+            .from('settings')
+            .select('current_week')
+            .eq('id', 1)
+            .single();
+
+          const weekToLoad = data?.current_week || 1;
+          setCurrentWeek(weekToLoad);
+          window.location.replace(`${window.location.pathname}?week=${weekToLoad}`);
+        } catch (err) {
+          console.error('Error loading current week:', err);
+          setCurrentWeek(1);
+          window.location.replace(`${window.location.pathname}?week=1`);
+        }
+      } else {
+        // Already have params, just load current week for state
+        loadCurrentWeek();
+      }
+    };
+
+    loadAndRedirect();
   }, []);
-
-  // Redirect to current week if no week specified (after currentWeek is loaded)
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const hasWeekParam = params.has('week');
-    const hasAdminParam = params.has('admin');
-
-    if (currentWeek > 0 && !hasWeekParam && !hasAdminParam) {
-      window.location.href = `?week=${currentWeek}`;
-    }
-  }, [currentWeek]);
 
   // Get week ID from URL query parameter
   const getWeekId = () => {
