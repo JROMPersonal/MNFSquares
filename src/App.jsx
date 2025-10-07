@@ -219,7 +219,7 @@ export default function FootballSquares() {
 
         <div className="flex flex-col lg:flex-row gap-4 lg:gap-8 justify-center">
           {/* Grid Section */}
-          <div className={isAdmin ? "flex-shrink-0" : ""}>
+          <div className={isAdmin ? "flex-shrink-0 w-full" : "w-full"}>
             <div className="bg-[#2b2d31] rounded-lg shadow-xl p-2 sm:p-4 lg:p-6 overflow-x-auto">
               <div className="flex items-center justify-between mb-3 sm:mb-4 lg:mb-6">
                 <div className="text-xs sm:text-sm font-semibold text-gray-300">
@@ -238,18 +238,18 @@ export default function FootballSquares() {
               <div className="inline-block min-w-max">
                 {/* Column header with team name */}
                 <div className="flex mb-1">
-                  <div className="w-8 sm:w-12 lg:w-20"></div>
-                  <div className="text-center font-bold text-sm sm:text-base lg:text-lg text-[#4da6ff]" style={{width: 'calc(10 * (32px + 2px))', '@media (min-width: 640px)': {width: 'calc(10 * (40px + 4px))'}, '@media (min-width: 1024px)': {width: '533px'}}}>
+                  <div className="w-12 lg:w-20"></div>
+                  <div className="text-center font-bold text-sm sm:text-base lg:text-lg text-[#4da6ff]" style={{width: 'calc(10 * (48px + 4px))', '@media (min-width: 1024px)': {width: '533px'}}}>
                     Chiefs
                   </div>
                 </div>
 
                 {/* Column numbers */}
                 <div className="flex mb-1">
-                  <div className="w-8 sm:w-12 lg:w-20"></div>
-                  <div className="flex gap-0.5 sm:gap-1">
+                  <div className="w-12 lg:w-20"></div>
+                  <div className="flex gap-1">
                     {colNumbers.map(num => (
-                      <div key={num} className="flex items-center justify-center font-bold text-xs sm:text-sm text-gray-400 w-8 h-6 sm:w-10 sm:h-8 lg:w-[52px] lg:h-8">
+                      <div key={num} className="flex items-center justify-center font-bold text-xs sm:text-sm text-gray-400 w-12 h-8 lg:w-[52px] lg:h-8">
                         {num}
                       </div>
                     ))}
@@ -259,23 +259,23 @@ export default function FootballSquares() {
                 {/* Grid rows */}
                 <div className="flex">
                   {/* Jaguars label vertically */}
-                  <div className="flex items-center justify-center w-4 sm:w-6 lg:w-10">
+                  <div className="flex items-center justify-center w-6 lg:w-10">
                     <div className="font-bold text-sm sm:text-base lg:text-lg text-[#4da6ff]" style={{writingMode: 'vertical-rl', transform: 'rotate(180deg)'}}>
                       Jaguars
                     </div>
                   </div>
 
                   {/* Row numbers */}
-                  <div className="flex flex-col gap-0.5 sm:gap-1 w-4 sm:w-6 lg:w-10">
+                  <div className="flex flex-col gap-1 w-6 lg:w-10">
                     {rowNumbers.map(num => (
-                      <div key={num} className="flex items-center justify-center font-bold text-xs sm:text-sm text-gray-400 h-8 sm:h-10 lg:h-[52px]">
+                      <div key={num} className="flex items-center justify-center font-bold text-xs sm:text-sm text-gray-400 h-12 lg:h-[52px]">
                         {num}
                       </div>
                     ))}
                   </div>
 
                   {/* Grid squares */}
-                  <div className="grid grid-cols-10 gap-0.5 sm:gap-1">
+                  <div className="grid grid-cols-10 gap-1">
                     {squares.map((square, index) => {
                       const isHighlighted = square && square === highlightedPlayer;
                       const row = Math.floor(index / 10);
@@ -287,7 +287,7 @@ export default function FootballSquares() {
                         <div
                           key={index}
                           onClick={() => handleSquareClick(index, square)}
-                          className={`border-2 rounded text-xs font-medium flex items-center justify-center transition-all relative group w-8 h-8 sm:w-10 sm:h-10 lg:w-[52px] lg:h-[52px] ${
+                          className={`border-2 rounded text-xs font-medium flex items-center justify-center transition-all relative group w-12 h-12 lg:w-[52px] lg:h-[52px] ${
                             isHighlighted
                               ? 'border-[#00d4ff] bg-[#00d4ff]/30 text-white shadow-lg shadow-[#00d4ff]/50 cursor-pointer'
                               : square
@@ -297,7 +297,7 @@ export default function FootballSquares() {
                         >
                           {square && (
                             <>
-                              <div className="truncate px-0.5 sm:px-1 text-[10px] sm:text-xs">{square}</div>
+                              <div className="truncate px-1 text-[10px] sm:text-xs">{square}</div>
                               {/* Desktop Tooltip */}
                               <div className="hidden md:block absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-[#1e1f22] text-white text-sm rounded shadow-lg border-2 border-orange-400 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-10">
                                 <div className="font-semibold">{square}</div>
