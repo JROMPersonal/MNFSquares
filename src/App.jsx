@@ -1222,7 +1222,7 @@ const handleUpdatePlayersLogin = () => {
                     playerName.toLowerCase().includes(playerSearchQuery.toLowerCase())
                   ).length === 0 && (
                     <div className="text-center text-gray-500 py-4 text-sm">
-                      No players found
+                      No players found!
                     </div>
                   )}
                 </div>
