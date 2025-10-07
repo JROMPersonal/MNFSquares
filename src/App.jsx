@@ -28,6 +28,7 @@ export default function FootballSquares() {
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [assigningSquare, setAssigningSquare] = useState(null);
   const [isAdminPage, setIsAdminPage] = useState(false);
+  const [playerSearchQuery, setPlayerSearchQuery] = useState('');
 
   useEffect(() => {
     const adminStatus = localStorage.getItem('isAdmin') === 'true';
@@ -1165,27 +1166,65 @@ const handleUpdatePlayersLogin = () => {
             <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4 text-white">Player Squares</h2>
             <div className="flex flex-col md:flex-row gap-4 md:gap-6">
               <div className="w-full md:w-64 flex-shrink-0">
+                {/* Search Bar */}
+                <div className="mb-3">
+                  <input
+                    type="text"
+                    placeholder="Search players..."
+                    value={playerSearchQuery}
+                    onChange={(e) => {
+                      const query = e.target.value;
+                      setPlayerSearchQuery(query);
+
+                      // Auto-highlight if only one result
+                      const filteredPlayers = getUniquePlayers().filter(playerName =>
+                        playerName.toLowerCase().includes(query.toLowerCase())
+                      );
+
+                      if (filteredPlayers.length === 1) {
+                        setSelectedPlayer(filteredPlayers[0]);
+                        setHighlightedPlayer(filteredPlayers[0]);
+                      } else if (filteredPlayers.length === 0 || query === '') {
+                        setSelectedPlayer(null);
+                        setHighlightedPlayer(null);
+                      }
+                    }}
+                    className="w-full px-3 py-2 bg-[#313338] border border-[#404249] text-gray-200 placeholder-gray-500 rounded focus:outline-none focus:ring-2 focus:ring-[#4da6ff] text-sm"
+                  />
+                </div>
+
                 <div className="bg-[#313338] rounded border border-[#404249] max-h-60 md:max-h-80 overflow-y-auto">
-                  {getUniquePlayers().map((playerName, index) => {
-                    const isSelected = selectedPlayer === playerName;
-                    const playerSquares = getPlayerSquares(playerName);
-                    return (
-                      <button
-                        key={index}
-                        onClick={() => {
-                          setSelectedPlayer(playerName);
-                          setHighlightedPlayer(playerName);
-                        }}
-                        className={`w-full px-3 sm:px-4 py-2 sm:py-3 text-left font-semibold transition-colors border-b border-[#404249] last:border-b-0 text-sm sm:text-base ${
-                          isSelected
-                            ? 'bg-[#4da6ff] text-white'
-                            : 'text-gray-200 hover:bg-[#383a40] active:bg-[#383a40]'
-                        }`}
-                      >
-                        {playerName} ({playerSquares.length})
-                      </button>
-                    );
-                  })}
+                  {getUniquePlayers()
+                    .filter(playerName =>
+                      playerName.toLowerCase().includes(playerSearchQuery.toLowerCase())
+                    )
+                    .map((playerName, index) => {
+                      const isSelected = selectedPlayer === playerName;
+                      const playerSquares = getPlayerSquares(playerName);
+                      return (
+                        <button
+                          key={index}
+                          onClick={() => {
+                            setSelectedPlayer(playerName);
+                            setHighlightedPlayer(playerName);
+                          }}
+                          className={`w-full px-3 sm:px-4 py-2 sm:py-3 text-left font-semibold transition-colors border-b border-[#404249] last:border-b-0 text-sm sm:text-base ${
+                            isSelected
+                              ? 'bg-[#4da6ff] text-white'
+                              : 'text-gray-200 hover:bg-[#383a40] active:bg-[#383a40]'
+                          }`}
+                        >
+                          {playerName} ({playerSquares.length})
+                        </button>
+                      );
+                    })}
+                  {getUniquePlayers().filter(playerName =>
+                    playerName.toLowerCase().includes(playerSearchQuery.toLowerCase())
+                  ).length === 0 && (
+                    <div className="text-center text-gray-500 py-4 text-sm">
+                      No players found
+                    </div>
+                  )}
                 </div>
               </div>
 
