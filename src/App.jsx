@@ -251,6 +251,11 @@ export default function FootballSquares() {
                   <div className="grid grid-cols-10 gap-1">
                     {squares.map((square, index) => {
                       const isHighlighted = square && square === highlightedPlayer;
+                      const row = Math.floor(index / 10);
+                      const col = index % 10;
+                      const chiefsScore = colNumbers[col];
+                      const jaguarsScore = rowNumbers[row];
+
                       return (
                         <div
                           key={index}
@@ -260,7 +265,7 @@ export default function FootballSquares() {
                               setSelectedPlayer(square);
                             }
                           }}
-                          className={`border-2 rounded text-xs font-medium flex items-center justify-center transition-all ${
+                          className={`border-2 rounded text-xs font-medium flex items-center justify-center transition-all relative group ${
                             isHighlighted
                               ? 'border-[#00d4ff] bg-[#00d4ff]/30 text-white shadow-lg shadow-[#00d4ff]/50 cursor-pointer'
                               : square
@@ -270,7 +275,18 @@ export default function FootballSquares() {
                           style={{width: '52px', height: '52px'}}
                         >
                           {square && (
-                            <div className="truncate px-1">{square}</div>
+                            <>
+                              <div className="truncate px-1">{square}</div>
+                              {/* Tooltip */}
+                              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-[#1e1f22] text-white text-sm rounded shadow-lg border-2 border-orange-400 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-10">
+                                <div className="font-semibold">{square}</div>
+                                <div className="text-xs text-gray-300">Chiefs {chiefsScore} - Jaguars {jaguarsScore}</div>
+                                {/* Arrow */}
+                                <div className="absolute top-full left-1/2 transform -translate-x-1/2 -mt-px">
+                                  <div className="border-4 border-transparent border-t-orange-400"></div>
+                                </div>
+                              </div>
+                            </>
                           )}
                         </div>
                       );
