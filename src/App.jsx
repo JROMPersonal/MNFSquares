@@ -44,8 +44,8 @@ export default function FootballSquares() {
 
   // Editable fields
   const [gameTitle, setGameTitle] = useState('Monday Night Football Squares');
-  const [teamRow, setTeamRow] = useState('Jaguars');
-  const [teamCol, setTeamCol] = useState('Chiefs');
+  const [teamRow, setTeamRow] = useState('Team A');
+  const [teamCol, setTeamCol] = useState('Team B');
   const [isEditingTitle, setIsEditingTitle] = useState(false);
 
   // Quarter scores
@@ -56,8 +56,17 @@ export default function FootballSquares() {
     q4: { team_col: '', team_row: '' }
   });
   const [isComplete, setIsComplete] = useState(false);
+  const [currentWeek, setCurrentWeek] = useState(1);
 
   const ADMIN_KEY = 'x123james';
+
+  // Redirect to current week if no week specified
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (!params.has('week') && !params.has('admin')) {
+      window.location.href = `?week=${currentWeek}`;
+    }
+  }, []);
 
   // Get week ID from URL query parameter
   const getWeekId = () => {
@@ -89,6 +98,11 @@ export default function FootballSquares() {
   useEffect(() => {
     loadGameData();
   }, [weekId]);
+
+  // Load current week setting
+  useEffect(() => {
+    loadCurrentWeek();
+  }, []);
 
   // Auto-load template players for all weeks (not just empty ones)
   useEffect(() => {
@@ -160,6 +174,46 @@ export default function FootballSquares() {
       }
     } catch (err) {
       console.error('Error loading template:', err);
+    }
+  };
+
+  const loadCurrentWeek = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('settings')
+        .select('current_week')
+        .eq('id', 1)
+        .single();
+
+      if (data) {
+        setCurrentWeek(data.current_week || 1);
+      }
+    } catch (err) {
+      console.error('Error loading current week:', err);
+    }
+  };
+
+  const saveCurrentWeek = async (week) => {
+    try {
+      const { data: existing } = await supabase
+        .from('settings')
+        .select('id')
+        .eq('id', 1)
+        .single();
+
+      if (existing) {
+        await supabase
+          .from('settings')
+          .update({ current_week: week })
+          .eq('id', 1);
+      } else {
+        await supabase
+          .from('settings')
+          .insert([{ id: 1, current_week: week }]);
+      }
+      setCurrentWeek(week);
+    } catch (err) {
+      console.error('Error saving current week:', err);
     }
   };
 
@@ -516,7 +570,12 @@ const handleUpdatePlayersLogin = () => {
             </div>
             <button
               onClick={() => navigateToWeek(getCurrentWeekNumber() + 1)}
-              className="px-3 sm:px-4 py-2 bg-[#313338] text-gray-200 rounded hover:bg-[#383a40] transition-colors border border-[#404249] text-sm sm:text-base"
+              disabled={getCurrentWeekNumber() >= currentWeek}
+              className={`px-3 sm:px-4 py-2 rounded transition-colors border text-sm sm:text-base ${
+                getCurrentWeekNumber() >= currentWeek
+                  ? 'bg-[#313338] text-gray-600 cursor-not-allowed border-[#404249]'
+                  : 'bg-[#313338] text-gray-200 hover:bg-[#383a40] border-[#404249]'
+              }`}
             >
               Next Week →
             </button>
@@ -530,6 +589,30 @@ const handleUpdatePlayersLogin = () => {
             <p className="text-gray-300 text-sm mb-3">
               Players added here will automatically appear in all weeks - You still need to randomize the squares / numbers.
             </p>
+
+            {/* Current Week Setting - Admin Only */}
+            {isAdmin && (
+              <div className="mb-4 p-3 bg-[#2b2d31] rounded border border-[#404249]">
+                <label className="text-sm text-gray-300 block mb-2">Current Week (for homepage redirect):</label>
+                <div className="flex gap-2 items-center">
+                  <input
+                    type="number"
+                    min="1"
+                    value={currentWeek}
+                    onChange={(e) => {
+                      const week = parseInt(e.target.value);
+                      if (week >= 1) {
+                        saveCurrentWeek(week);
+                      }
+                    }}
+                    onFocus={(e) => e.target.select()}
+                    className="w-20 px-3 py-2 bg-[#313338] border border-[#4da6ff] text-white rounded focus:outline-none focus:ring-2 focus:ring-[#4da6ff] text-center"
+                  />
+                  <span className="text-gray-400 text-sm">Users will be redirected to Week {currentWeek}</span>
+                </div>
+              </div>
+            )}
+
             <button
               onClick={() => window.location.href = '?week=1'}
               className="px-4 py-2 bg-[#4da6ff] text-white rounded hover:bg-[#3399ff] transition-colors text-sm"
