@@ -19,11 +19,28 @@ export default function FootballSquares() {
   const [showAdminModal, setShowAdminModal] = useState(false);
   const [adminKeyInput, setAdminKeyInput] = useState('');
   const [adminError, setAdminError] = useState('');
+  const [showUpdatePlayersModal, setShowUpdatePlayersModal] = useState(false);
+  const [updatePlayersKeyInput, setUpdatePlayersKeyInput] = useState('');
+  const [updatePlayersError, setUpdatePlayersError] = useState('');
   const [tooltipSquare, setTooltipSquare] = useState(null);
   const [isZoomedOut, setIsZoomedOut] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [assigningSquare, setAssigningSquare] = useState(null);
+  const [isAdminPage, setIsAdminPage] = useState(false);
+
+  useEffect(() => {
+    const adminStatus = localStorage.getItem('isAdmin') === 'true';
+    setIsAdmin(adminStatus);
+  }, []);
+
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const hasAdminParam = searchParams.has("admin");
+
+    // Admin page means: you're logged in as admin and ?admin is in URL
+    setIsAdminPage(isAdmin && hasAdminParam);
+  }, [isAdmin]);
 
   // Editable fields
   const [gameTitle, setGameTitle] = useState('Monday Night Football Squares');
@@ -73,6 +90,13 @@ export default function FootballSquares() {
     loadGameData();
   }, [weekId]);
 
+  // Auto-load template players for all weeks (not just empty ones)
+  useEffect(() => {
+    if (!isLoading && !isTemplateMode) {
+      loadTemplateData();
+    }
+  }, [isLoading, weekId]);
+
   // Save data to Supabase whenever state changes
   useEffect(() => {
     if (!isLoading) {
@@ -102,16 +126,19 @@ export default function FootballSquares() {
         setPlayers(data.players || []);
         setRowNumbers(data.row_numbers || [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
         setColNumbers(data.col_numbers || [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
-        setGameTitle(data.game_title || 'Monday Night Football Squares');
-        setTeamRow(data.team_row || 'Jaguars');
-        setTeamCol(data.team_col || 'Chiefs');
-        setQuarterScores(data.quarter_scores || {
-          q1: { team_col: '', team_row: '' },
-          q2: { team_col: '', team_row: '' },
-          q3: { team_col: '', team_row: '' },
-          q4: { team_col: '', team_row: '' }
-        });
-        setIsComplete(data.is_complete || false);
+
+        if (!isTemplateMode) {
+          setGameTitle(data.game_title || 'Monday Night Football Squares');
+          setTeamRow(data.team_row || 'Team A');
+          setTeamCol(data.team_col || 'Team B');
+          setQuarterScores(data.quarter_scores || {
+            q1: { team_col: '', team_row: '' },
+            q2: { team_col: '', team_row: '' },
+            q3: { team_col: '', team_row: '' },
+            q4: { team_col: '', team_row: '' }
+          });
+          setIsComplete(data.is_complete || false);
+        }
       }
       setIsLoading(false);
     } catch (err) {
@@ -120,21 +147,62 @@ export default function FootballSquares() {
     }
   };
 
+  const loadTemplateData = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('game_weeks')
+        .select('players')
+        .eq('week_id', 'season_template')
+        .single();
+
+      if (data && data.players && data.players.length > 0) {
+        setPlayers(data.players);
+      }
+    } catch (err) {
+      console.error('Error loading template:', err);
+    }
+  };
+
+  const resetToTemplate = async () => {
+    if (confirm('Reset players to season template? This will overwrite current players.')) {
+      await loadTemplateData();
+    }
+  };
+
   const saveGameData = async () => {
     try {
-      const gameData = {
-        week_id: weekId,
-        squares,
-        players,
-        row_numbers: rowNumbers,
-        col_numbers: colNumbers,
-        game_title: gameTitle,
-        team_row: teamRow,
-        team_col: teamCol,
-        quarter_scores: quarterScores,
-        is_complete: isComplete,
-        updated_at: new Date().toISOString()
-      };
+      const gameData = isTemplateMode
+        ? {
+            week_id: weekId,
+            players,
+            squares: Array(100).fill(null),
+            row_numbers: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+            col_numbers: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+            game_title: 'Season Template',
+            team_row: 'Team A',
+            team_col: 'Team B',
+            quarter_scores: {
+              q1: { team_col: '', team_row: '' },
+              q2: { team_col: '', team_row: '' },
+              q3: { team_col: '', team_row: '' },
+              q4: { team_col: '', team_row: '' }
+            },
+            is_complete: false,
+            updated_at: new Date().toISOString()
+          }
+        : {
+            week_id: weekId,
+            squares,
+            players,
+            row_numbers: rowNumbers,
+            col_numbers: colNumbers,
+            game_title: gameTitle,
+            team_row: teamRow,
+            team_col: teamCol,
+            quarter_scores: quarterScores,
+            is_complete: isComplete,
+            updated_at: new Date().toISOString()
+          };
 
       const { data: existing } = await supabase
         .from('game_weeks')
@@ -168,6 +236,7 @@ export default function FootballSquares() {
   const handleAdminLogin = () => {
     if (adminKeyInput === ADMIN_KEY) {
       setIsAdmin(true);
+      localStorage.setItem('isAdmin', 'true');
       setShowAdminModal(false);
       setAdminKeyInput('');
       setAdminError('');
@@ -179,7 +248,21 @@ export default function FootballSquares() {
 
   const handleAdminLogout = () => {
     setIsAdmin(false);
+    localStorage.removeItem('isAdmin');
   };
+
+const handleUpdatePlayersLogin = () => {
+  if (isAdmin) {
+    setIsAdmin(true);
+    localStorage.setItem('isAdmin', 'true');
+    setUpdatePlayersKeyInput('');
+    setUpdatePlayersError('');
+    window.location.href = '?admin';
+  } else {
+    setUpdatePlayersError('Incorrect admin key');
+    setUpdatePlayersKeyInput('');
+  }
+};
 
   const handlePlayerNameChange = (index, name) => {
     const newPlayers = [...players];
@@ -216,7 +299,7 @@ export default function FootballSquares() {
 
     const totalNeeded = validPlayers.reduce((sum, p) => sum + p.squares, 0);
     if (totalNeeded > 100) {
-      alert(`Total squares (${totalNeeded}) exceeds 100!`);
+      alert(`Total Players (${totalNeeded}) exceeds 100!`);
       return;
     }
 
@@ -349,15 +432,16 @@ export default function FootballSquares() {
               onChange={(e) => setGameTitle(e.target.value)}
               onBlur={() => setIsEditingTitle(false)}
               onKeyPress={(e) => e.key === 'Enter' && setIsEditingTitle(false)}
-              className="text-xl sm:text-2xl lg:text-4xl font-bold text-white bg-[#313338] border border-[#4da6ff] rounded px-2 py-1 focus:outline-none"
+              className="text-lg sm:text-xl lg:text-2xl font-bold text-white bg-[#313338] border border-[#4da6ff] rounded px-2 py-1 focus:outline-none"
               autoFocus
             />
           ) : (
             <h1
-              className={`text-xl sm:text-2xl lg:text-4xl font-bold text-white ${isAdmin ? 'cursor-pointer hover:text-[#4da6ff]' : ''} transition-colors`}
+              className={`text-lg sm:text-xl lg:text-2xl font-bold text-white ${isAdmin ? 'cursor-pointer hover:text-[#4da6ff]' : ''} transition-colors`}
               onClick={() => isAdmin && setIsEditingTitle(true)}
             >
-              {gameTitle} <span className="text-sm text-gray-500">({weekId})</span>
+              {isTemplateMode ? 'Season Player Template' : gameTitle}
+              {!isTemplateMode && <span className="text-sm text-gray-500"> ({weekId})</span>}
             </h1>
           )}
           <button
@@ -381,34 +465,79 @@ export default function FootballSquares() {
               </>
             )}
           </button>
+          {!isTemplateMode && isAdmin && (
+            <button
+              onClick={() => {
+                if (!isAdmin) {
+                  setShowUpdatePlayersModal(true);
+                } else {
+                  window.location.href = '?admin';
+                }
+              }}
+              className="flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-1 sm:py-2 rounded transition-colors border text-xs sm:text-sm bg-purple-600 text-white border-purple-500 hover:bg-purple-700"
+            >
+              <span>Update Players</span>
+            </button>
+          )}
         </div>
         <p className="text-center text-gray-400 mb-4 sm:mb-6 lg:mb-8 text-sm sm:text-base">
-          {teamCol} vs {teamRow}
+          {isTemplateMode ? 'Manage your season-wide player list' : `${teamCol} vs ${teamRow}`}
         </p>
 
-        {/* Week Navigation */}
-        <div className="flex items-center justify-center gap-3 mb-4 sm:mb-6">
-          <button
-            onClick={() => navigateToWeek(getCurrentWeekNumber() - 1)}
-            disabled={getCurrentWeekNumber() <= 1}
-            className={`px-3 sm:px-4 py-2 rounded transition-colors text-sm sm:text-base ${
-              getCurrentWeekNumber() <= 1
-                ? 'bg-[#313338] text-gray-600 cursor-not-allowed'
-                : 'bg-[#313338] text-gray-200 hover:bg-[#383a40] border border-[#404249]'
-            }`}
-          >
-            ← Previous Week
-          </button>
-          <div className="px-4 py-2 bg-[#2b2d31] text-white font-semibold rounded border border-[#4da6ff] text-sm sm:text-base">
-            Week {getCurrentWeekNumber()}
+        {/* Week Navigation - Hide in template mode */}
+        {!isTemplateMode && (
+          <div className="flex items-center justify-center gap-3 mb-4 sm:mb-6">
+            <button
+              onClick={() => navigateToWeek(getCurrentWeekNumber() - 1)}
+              disabled={getCurrentWeekNumber() <= 1}
+              className={`px-3 sm:px-4 py-2 rounded transition-colors text-sm sm:text-base ${
+                getCurrentWeekNumber() <= 1
+                  ? 'bg-[#313338] text-gray-600 cursor-not-allowed'
+                  : 'bg-[#313338] text-gray-200 hover:bg-[#383a40] border border-[#404249]'
+              }`}
+            >
+              ← Previous Week
+            </button>
+            <div className="px-4 py-2 bg-[#2b2d31] text-white font-semibold rounded border border-[#4da6ff] text-sm sm:text-base flex items-center gap-2">
+              Week
+              <input
+                type="number"
+                min="1"
+                value={getCurrentWeekNumber()}
+                onChange={(e) => {
+                  const weekNum = parseInt(e.target.value);
+                  if (weekNum >= 1) {
+                    navigateToWeek(weekNum);
+                  }
+                }}
+                onFocus={(e) => e.target.select()}
+                className="w-12 sm:w-16 px-2 py-1 bg-[#2b2d31] text-white rounded focus:outline-none text-center"
+              />
+            </div>
+            <button
+              onClick={() => navigateToWeek(getCurrentWeekNumber() + 1)}
+              className="px-3 sm:px-4 py-2 bg-[#313338] text-gray-200 rounded hover:bg-[#383a40] transition-colors border border-[#404249] text-sm sm:text-base"
+            >
+              Next Week →
+            </button>
           </div>
-          <button
-            onClick={() => navigateToWeek(getCurrentWeekNumber() + 1)}
-            className="px-3 sm:px-4 py-2 bg-[#313338] text-gray-200 rounded hover:bg-[#383a40] transition-colors border border-[#404249] text-sm sm:text-base"
-          >
-            Next Week →
-          </button>
-        </div>
+        )}
+
+        {/* Template Mode Info Banner */}
+        {isTemplateMode && (
+          <div className="mb-6 bg-[#4da6ff]/20 border-2 border-[#4da6ff] rounded-lg p-4">
+            <h3 className="text-lg font-bold text-[#4da6ff] mb-2">Season Template</h3>
+            <p className="text-gray-300 text-sm mb-3">
+              Players added here will automatically appear in all weeks - You still need to randomize the squares / numbers.
+            </p>
+            <button
+              onClick={() => window.location.href = '?week=1'}
+              className="px-4 py-2 bg-[#4da6ff] text-white rounded hover:bg-[#3399ff] transition-colors text-sm"
+            >
+              ← Back to Weeks
+            </button>
+          </div>
+        )}
 
         {/* Admin Login Modal */}
         {showAdminModal && (
@@ -439,6 +568,46 @@ export default function FootballSquares() {
                     setShowAdminModal(false);
                     setAdminKeyInput('');
                     setAdminError('');
+                  }}
+                  className="flex-1 px-3 sm:px-4 py-2 bg-[#313338] text-gray-200 rounded hover:bg-[#383a40] transition-colors text-sm sm:text-base"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Update Players Login Modal */}
+        {showUpdatePlayersModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowUpdatePlayersModal(false)}>
+            <div className="bg-[#2b2d31] rounded-lg p-4 sm:p-6 w-full max-w-sm border border-[#404249]" onClick={(e) => e.stopPropagation()}>
+              <h3 className="text-lg sm:text-xl font-bold text-white mb-3 sm:mb-4">Update Season Players</h3>
+              <p className="text-gray-400 text-sm mb-3">Enter admin key to manage season template</p>
+              <input
+                type="password"
+                value={updatePlayersKeyInput}
+                onChange={(e) => setUpdatePlayersKeyInput(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleUpdatePlayersLogin()}
+                placeholder="Admin key"
+                className="w-full px-3 py-2 bg-[#313338] border border-[#404249] text-gray-200 placeholder-gray-500 rounded focus:outline-none focus:ring-2 focus:ring-[#4da6ff] mb-3 text-sm sm:text-base"
+                autoFocus
+              />
+              {updatePlayersError && (
+                <p className="text-red-400 text-xs sm:text-sm mb-3">{updatePlayersError}</p>
+              )}
+              <div className="flex gap-2">
+                <button
+                  onClick={handleUpdatePlayersLogin}
+                  className="flex-1 px-3 sm:px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors text-sm sm:text-base"
+                >
+                  Continue
+                </button>
+                <button
+                  onClick={() => {
+                    setShowUpdatePlayersModal(false);
+                    setUpdatePlayersKeyInput('');
+                    setUpdatePlayersError('');
                   }}
                   className="flex-1 px-3 sm:px-4 py-2 bg-[#313338] text-gray-200 rounded hover:bg-[#383a40] transition-colors text-sm sm:text-base"
                 >
@@ -509,8 +678,8 @@ export default function FootballSquares() {
           </div>
         )}
 
-        {/* Winners Display */}
-        {isComplete && getWinningSquares().length > 0 && (
+        {/* Winners Display - Hide in template mode */}
+        {!isTemplateMode && isComplete && getWinningSquares().length > 0 && (
           <div className="mb-4 sm:mb-6 bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border-2 border-yellow-500 rounded-lg p-4 sm:p-6">
             <h2 className="text-2xl sm:text-3xl font-bold text-center text-yellow-400 mb-4">🏆 Winners! 🏆</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
@@ -529,12 +698,13 @@ export default function FootballSquares() {
         )}
 
         <div className="flex flex-col lg:flex-row gap-4 lg:gap-8 justify-center">
-          {/* Grid Section */}
-          <div className={isAdmin ? "flex-shrink-0 w-full" : "w-full"}>
+          {/* Grid Section - Hide in template mode */}
+          {!isTemplateMode && (
+            <div className={isAdmin ? "flex-shrink-0 w-full" : "w-full"}>
             <div className="bg-[#2b2d31] rounded-lg shadow-xl p-2 sm:p-4 lg:p-6 overflow-x-auto">
               <div className="flex items-center justify-between mb-3 sm:mb-4 lg:mb-6 gap-2">
                 <div className="text-xs sm:text-sm font-semibold text-gray-300">
-                  Assigned: {totalAssigned} / 100
+                  Squares: {totalAssigned} / 100
                 </div>
                 <div className="flex gap-2">
                   <button
@@ -650,75 +820,125 @@ export default function FootballSquares() {
               </div>
             </div>
           </div>
+          )}
 
           {/* Players Section */}
-          {isAdmin && (
-            <div className="w-full lg:w-96">
+          {(isAdmin || isTemplateMode) && (
+            <div className="w-full lg:w-96 mx-auto">
               <div className="bg-[#2b2d31] rounded-lg shadow-xl p-4 sm:p-6">
-                <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4 text-white">Players</h2>
+                <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4 text-white">
+                  {isTemplateMode ? 'Season Players' : 'Players'}
+                </h2>
 
-                <div className="space-y-2 mb-4 max-h-60 sm:max-h-96 overflow-y-auto">
-                  {players.map((player, index) => (
-                    <div key={index} className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        placeholder="Player name"
-                        value={player.name}
-                        onChange={(e) => handlePlayerNameChange(index, e.target.value)}
-                        className="flex-1 px-2 sm:px-3 py-1.5 sm:py-2 bg-[#313338] border border-[#404249] text-gray-200 placeholder-gray-500 rounded focus:outline-none focus:ring-2 focus:ring-[#4da6ff] text-sm sm:text-base"
-                      />
-                      <input
-                        type="number"
-                        min="1"
-                        max="100"
-                        value={player.squares}
-                        onChange={(e) => handlePlayerSquaresChange(index, e.target.value)}
-                        onFocus={(e) => e.target.select()}
-                        className="w-12 sm:w-16 px-1 sm:px-2 py-1.5 sm:py-2 bg-[#313338] border border-[#404249] text-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-[#4da6ff] text-center text-sm sm:text-base"
-                      />
-                      <button
-                        onClick={() => handleRemovePlayer(index)}
-                        className="text-red-400 hover:text-red-300 transition-colors p-1 sm:p-2"
-                      >
-                        <Trash2 size={16} className="sm:w-[18px] sm:h-[18px]" />
-                      </button>
-                    </div>
-                  ))}
+                <div className="space-y-2 mb-4 max-h-60 sm:max-h-96 overflow-y-auto px-0.5">
+                  {players.map((player, index) => {
+                    const isHighlighted = highlightedPlayer === player.name.trim();
+                    const assignedCount = getPlayerSquareCount(player.name.trim());
+                    const canHighlight = player.name.trim() && assignedCount > 0;
+
+                    return (
+                      <div key={index} className="flex items-center gap-2">
+                        <div
+                          className={`flex-1 flex items-center gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded transition-all ${
+                            canHighlight ? 'cursor-pointer' : ''
+                          } ${
+                            isHighlighted
+                              ? 'bg-[#00d4ff]/30 ring-2 ring-[#00d4ff]'
+                              : canHighlight ? 'hover:bg-[#383a40]' : ''
+                          }`}
+                          onClick={() => {
+                            if (canHighlight && !(isAdmin && isAdminPage)) {
+                              setHighlightedPlayer(highlightedPlayer === player.name.trim() ? null : player.name.trim());
+                              setSelectedPlayer(highlightedPlayer === player.name.trim() ? null : player.name.trim());
+                            }
+                          }}
+                        >
+                          {isAdmin && isAdminPage ? (
+                            <input
+                              type="text"
+                              placeholder="Player name"
+                              value={player.name}
+                              onChange={(e) => handlePlayerNameChange(index, e.target.value)}
+                              className="flex-1 bg-transparent border-none text-gray-200 placeholder-gray-500 focus:outline-none text-sm sm:text-base"
+                            />
+                          ) : (
+                            <span className="flex-1 text-gray-200 text-sm sm:text-base select-none">
+                              {player.name || <span className="text-gray-500">Player name</span>}
+                            </span>
+                          )}
+                          {assignedCount > 0 && (
+                            <span className="text-xs sm:text-sm text-gray-400 font-semibold select-none">
+                              ({assignedCount})
+                            </span>
+                          )}
+                        </div>
+                        <input
+                          type="number"
+                          min="1"
+                          max="100"
+                          value={player.squares}
+                          onChange={(e) => handlePlayerSquaresChange(index, e.target.value)}
+                          onFocus={(e) => e.target.select()}
+                          disabled={!(isAdmin && isAdminPage)}
+                          className={`w-12 sm:w-16 px-1 sm:px-2 py-1.5 sm:py-2 bg-[#313338] border border-[#404249] text-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-[#4da6ff] text-center text-sm sm:text-base ${
+                            !(isAdmin && isAdminPage) ? 'opacity-60 cursor-not-allowed' : ''
+                          }`}
+                        />
+                        {isAdmin && isAdminPage && (
+                          <button
+                            onClick={() => handleRemovePlayer(index)}
+                            className="text-red-400 hover:text-red-300 transition-colors p-1 sm:p-2"
+                          >
+                            <Trash2 size={16} className="sm:w-[18px] sm:h-[18px]" />
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
 
-                <button
-                  onClick={handleAddPlayer}
-                  className="w-full px-3 sm:px-4 py-2 bg-[#313338] text-gray-200 rounded hover:bg-[#383a40] transition-colors flex items-center justify-center gap-2 border border-[#404249] mb-3 sm:mb-4 text-sm sm:text-base"
-                >
-                  <Plus size={18} className="sm:w-5 sm:h-5" />
-                  Add Player
-                </button>
+                {isAdmin && isAdminPage && (
+                  <button
+                    onClick={handleAddPlayer}
+                    className="w-full px-3 sm:px-4 py-2 bg-[#313338] text-gray-200 rounded hover:bg-[#383a40] transition-colors flex items-center justify-center gap-2 border border-[#404249] mb-3 sm:mb-4 text-sm sm:text-base"
+                  >
+                    <Plus size={18} className="sm:w-5 sm:h-5" />
+                    Add Person
+                  </button>
+                )}
 
                 <div className="mb-3 sm:mb-4 p-2 sm:p-3 bg-[#313338] rounded border border-[#404249]">
                   <div className="text-xs sm:text-sm text-gray-300">
-                    Total squares: <span className="font-bold text-white">{totalRequested}</span> / 100
+                    Total People: <span className="font-bold text-white">{totalRequested}</span> / 100
                   </div>
                   {totalRequested > 100 && (
                     <div className="text-xs text-red-400 mt-1">Too many squares!</div>
                   )}
                 </div>
 
+                {!isAdminPage && (
                 <div className="space-y-2">
-                  <button
-                    onClick={fillSquares}
-                    className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-[#4da6ff] text-white rounded hover:bg-[#3399ff] transition-colors flex items-center justify-center gap-2 font-semibold text-sm sm:text-base"
-                  >
-                    <Shuffle size={18} className="sm:w-5 sm:h-5" />
-                    Fill Squares Randomly
-                  </button>
-                  <button
-                    onClick={clearSquares}
-                    className="w-full px-3 sm:px-4 py-2 bg-red-500/20 text-red-400 rounded hover:bg-red-500/30 transition-colors text-xs sm:text-sm"
-                  >
-                    Clear All Squares
-                  </button>
+                {isAdmin && (
+                  <div className="space-y-2">
+                    <button
+                      onClick={fillSquares}
+                      className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-[#4da6ff] text-white rounded hover:bg-[#3399ff] transition-colors flex items-center justify-center gap-2 font-semibold text-sm sm:text-base"
+                    >
+                      <Shuffle size={18} className="sm:w-5 sm:h-5" />
+                      Fill Squares Randomly
+                    </button>
+                    <button
+                      onClick={clearSquares}
+                      className="w-full px-3 sm:px-4 py-2 bg-red-500/20 text-red-400 rounded hover:bg-red-500/30 transition-colors text-xs sm:text-sm"
+                    >
+                      Clear All Squares
+                    </button>
+                  </div>
+                )}
                 </div>
+                )}
 
+                {isAdmin && !isAdminPage && (
                 <div className="mt-6 pt-6 border-t-2 border-[#404249]">
                   <h3 className="text-lg sm:text-xl font-bold mb-3 text-white">Quarter Scores</h3>
                   <div className="space-y-3">
@@ -775,13 +995,15 @@ export default function FootballSquares() {
                     {isComplete ? '✓ Week Complete' : 'Mark Week as Complete'}
                   </button>
                 </div>
+                )}
+
               </div>
             </div>
           )}
         </div>
 
-        {/* Player Squares Lookup */}
-        {totalAssigned > 0 && (
+        {/* Player Squares Lookup - Hide in template mode */}
+        {!isTemplateMode && totalAssigned > 0 && (
           <div className="mt-4 sm:mt-6 lg:mt-8 bg-[#2b2d31] rounded-lg shadow-xl p-4 sm:p-6">
             <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4 text-white">Player Squares</h2>
             <div className="flex flex-col md:flex-row gap-4 md:gap-6">
