@@ -40,6 +40,15 @@ export default function FootballSquares() {
 
   const weekId = getWeekId();
 
+  const getCurrentWeekNumber = () => {
+    const params = new URLSearchParams(window.location.search);
+    return parseInt(params.get('week')) || 1;
+  };
+
+  const navigateToWeek = (weekNumber) => {
+    window.location.href = `?week=${weekNumber}`;
+  };
+
   // Load data from Supabase on mount
   useEffect(() => {
     loadGameData();
@@ -291,6 +300,30 @@ export default function FootballSquares() {
         <p className="text-center text-gray-400 mb-4 sm:mb-6 lg:mb-8 text-sm sm:text-base">
           {teamCol} vs {teamRow}
         </p>
+
+        {/* Week Navigation */}
+        <div className="flex items-center justify-center gap-3 mb-4 sm:mb-6">
+          <button
+            onClick={() => navigateToWeek(getCurrentWeekNumber() - 1)}
+            disabled={getCurrentWeekNumber() <= 1}
+            className={`px-3 sm:px-4 py-2 rounded transition-colors text-sm sm:text-base ${
+              getCurrentWeekNumber() <= 1
+                ? 'bg-[#313338] text-gray-600 cursor-not-allowed'
+                : 'bg-[#313338] text-gray-200 hover:bg-[#383a40] border border-[#404249]'
+            }`}
+          >
+            ← Previous Week
+          </button>
+          <div className="px-4 py-2 bg-[#2b2d31] text-white font-semibold rounded border border-[#4da6ff] text-sm sm:text-base">
+            Week {getCurrentWeekNumber()}
+          </div>
+          <button
+            onClick={() => navigateToWeek(getCurrentWeekNumber() + 1)}
+            className="px-3 sm:px-4 py-2 bg-[#313338] text-gray-200 rounded hover:bg-[#383a40] transition-colors border border-[#404249] text-sm sm:text-base"
+          >
+            Next Week →
+          </button>
+        </div>
 
         {/* Admin Login Modal */}
         {showAdminModal && (
