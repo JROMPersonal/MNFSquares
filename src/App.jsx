@@ -448,6 +448,7 @@ const handleUpdatePlayersLogin = () => {
       }
     });
 
+    console.log('Winning squares:', winners); // Debug log
     return winners;
   };
 
@@ -455,6 +456,12 @@ const handleUpdatePlayersLogin = () => {
     if (!isComplete) return false;
     const winners = getWinningSquares();
     return winners.some(w => w.squareIndex === index);
+  };
+
+  const getSquareWinCount = (index) => {
+    if (!isComplete) return 0;
+    const winners = getWinningSquares();
+    return winners.filter(w => w.squareIndex === index).length;
   };
 
   const handleSquareClick = (index, square) => {
@@ -848,9 +855,28 @@ const handleUpdatePlayersLogin = () => {
                 <div className="flex mb-1">
                   <div className="w-12 lg:w-20"></div>
                   <div className="flex gap-1">
-                    {colNumbers.map(num => (
-                      <div key={num} className="flex items-center justify-center font-bold text-xs sm:text-sm text-gray-400 w-12 h-8 lg:w-[52px] lg:h-8">
-                        {num}
+                    {colNumbers.map((num, idx) => (
+                      <div key={idx} className="flex items-center justify-center font-bold text-xs sm:text-sm text-gray-400 w-12 h-8 lg:w-[52px] lg:h-8">
+                        {isAdmin ? (
+                          <input
+                            type="number"
+                            min="0"
+                            max="9"
+                            value={num}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              if (val === '' || (parseInt(val) >= 0 && parseInt(val) <= 9)) {
+                                const newColNumbers = [...colNumbers];
+                                newColNumbers[idx] = val === '' ? 0 : parseInt(val);
+                                setColNumbers(newColNumbers);
+                              }
+                            }}
+                            onFocus={(e) => e.target.select()}
+                            className="w-8 h-6 bg-[#313338] border border-[#404249] text-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-[#4da6ff] text-center text-xs"
+                          />
+                        ) : (
+                          num
+                        )}
                       </div>
                     ))}
                   </div>
@@ -874,9 +900,28 @@ const handleUpdatePlayersLogin = () => {
                   </div>
 
                   <div className="flex flex-col gap-1 w-6 lg:w-10">
-                    {rowNumbers.map(num => (
-                      <div key={num} className="flex items-center justify-center font-bold text-xs sm:text-sm text-gray-400 h-12 lg:h-[52px]">
-                        {num}
+                    {rowNumbers.map((num, idx) => (
+                      <div key={idx} className="flex items-center justify-center font-bold text-xs sm:text-sm text-gray-400 h-12 lg:h-[52px]">
+                        {isAdmin ? (
+                          <input
+                            type="number"
+                            min="0"
+                            max="9"
+                            value={num}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              if (val === '' || (parseInt(val) >= 0 && parseInt(val) <= 9)) {
+                                const newRowNumbers = [...rowNumbers];
+                                newRowNumbers[idx] = val === '' ? 0 : parseInt(val);
+                                setRowNumbers(newRowNumbers);
+                              }
+                            }}
+                            onFocus={(e) => e.target.select()}
+                            className="w-6 h-8 bg-[#313338] border border-[#404249] text-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-[#4da6ff] text-center text-xs"
+                          />
+                        ) : (
+                          num
+                        )}
                       </div>
                     ))}
                   </div>
@@ -888,13 +933,15 @@ const handleUpdatePlayersLogin = () => {
                       const col = index % 10;
                       const chiefsScore = colNumbers[col];
                       const jaguarsScore = rowNumbers[row];
+                      const winCount = getSquareWinCount(index);
+                      const isWinner = winCount > 0;
 
                       return (
                         <div
                           key={index}
                           onClick={() => handleSquareClick(index, square)}
                           className={`border-2 rounded text-xs font-medium flex items-center justify-center transition-all relative group w-12 h-12 lg:w-[52px] lg:h-[52px] ${
-                            isWinningSquare(index)
+                            isWinner
                               ? 'border-yellow-500 bg-yellow-500/30 text-white shadow-lg shadow-yellow-500/50 animate-pulse'
                               : isHighlighted
                               ? 'border-[#00d4ff] bg-[#00d4ff]/30 text-white shadow-lg shadow-[#00d4ff]/50 cursor-pointer'
@@ -905,7 +952,14 @@ const handleUpdatePlayersLogin = () => {
                         >
                           {square && (
                             <>
-                              <div className="px-1 text-[10px] sm:text-xs leading-tight text-center break-words">{square}</div>
+                              <div className="px-1 text-[10px] sm:text-xs leading-tight text-center break-words">
+                                {square}
+                              </div>
+                              {winCount > 1 && (
+                                <div className="absolute top-0 right-0 bg-yellow-500 text-black text-[10px] font-bold rounded-bl px-1 leading-tight">
+                                  x{winCount}
+                                </div>
+                              )}
                               <div className="hidden md:block absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-[#1e1f22] text-white text-sm rounded shadow-lg border-2 border-orange-400 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-10">
                                 <div className="font-semibold">{square}</div>
                                 <div className="text-xs text-gray-300">{teamCol} {chiefsScore} - {teamRow} {jaguarsScore}</div>
